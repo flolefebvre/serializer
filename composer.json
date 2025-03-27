@@ -1,0 +1,28 @@
+{
+  "name": "flolefebvre/serializer",
+  "type": "library",
+  "version": "1.0.0",
+  "require-dev": {
+    "pestphp/pest": "^3.7"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "pest"
+  },
+  "autoload": {
+    "psr-4": {
+      "Flolefebvre\\Serializer\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Florian Lefebvre",
+      "email": "florian.lefebvre.contact@gmail.com"
+    }
+  ],
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  }
+}
