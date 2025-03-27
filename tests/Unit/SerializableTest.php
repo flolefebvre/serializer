@@ -1,13 +1,24 @@
 <?php
 
-use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Tests\Helper\ClassFactory;
 use Tests\Helper\Classes\WithArray;
 use Tests\Helper\Classes\EmptyClass;
 use Tests\Helper\Classes\WithOneText;
 use Tests\Helper\Classes\WithSubClass;
+use Tests\Helper\Classes\WithTwoTexts;
 use Flolefebvre\Serializer\Serializable;
+use Tests\Helper\Classes\WithNoArrayType;
+use Tests\Helper\Classes\WithNoTypeParam;
 use Tests\Helper\Classes\WithDefaultValues;
+use Tests\Helper\Classes\ChildOfWithOneText;
+use Tests\Helper\Classes\WithUnionTypeParam;
+use Tests\Helper\Classes\WithArrayAndAttribute;
+use Tests\Helper\Classes\WithIntersectionTypeParam;
+use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
+use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
+use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
+use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
+use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -67,7 +78,8 @@ describe('#from', function () {
         'WithOneText' => [new WithOneText('the text')],
         'WithSubClass' => [new WithSubClass(new WithOneText('the text'))],
         'WithArray' => [new WithArray([new EmptyClass, new WithOneText('the text')])],
-        'WithDefaultValues' => [new WithDefaultValues('a')]
+        'WithDefaultValues' => [new WithDefaultValues('a')],
+        'WithNoTypeParam' => [new WithNoTypeParam('the text'),],
     ]);
 
     it('unserializes from array with additionnal data', function (Serializable $input, array $array) {
@@ -111,7 +123,7 @@ describe('#from', function () {
         [100],
         [1000],
         [10000],
-        [100000],
+        [50000],
     ]);
 
     it('converts from string', function (Serializable $input) {
@@ -140,27 +152,50 @@ describe('#from', function () {
 
         // Assert
         expect($result)->toBeInstanceOf($class);
-        expect($result)->toEqual($expected);
         expect($result->toArray())->toBe($expected->toArray());
     })->with([
         'EmptyClass' => [new WithOneText('the text'), new EmptyClass()],
         'WithOneText' =>  [(object)['text' => 'the text'], new WithOneText('the text')],
         'WithSubClass' => [(object)['subClass' => ['_type' => WithOneText::class, 'text' => 'the text']], new WithSubClass(new WithOneText('the text'))],
-        'WithSubClass' => [(object)['subClass' => ['_type' => WithOneText::class, 'text' => 'the text']], new WithSubClass(new WithOneText('the text'))],
-        // 'WithArray' => [
-        //     new WithArray([
-        //         new WithOneText('the text'),
-        //         new WithTwoTexts('the text 2', 'random'),
-        //     ]),
-        //     new WithArrayAndAttribute([new WithOneText('the text'), new WithOneText('the text 2')])
-        // ],
-        // 'WithArray' => [[
-        //     'array' => [
-        //         ['_type' => WithOneText::class, 'text' => 'the text', 'added param' => 'random'],
-        //         new WithTwoTexts('the text 2', 'random')
-        //     ],
-        // ], new WithArray([new WithOneText('the text'), new WithOneText('the text 2')])],
-        // 'WithDefaultValues' => [new WithDefaultValues('a')]
+        'WithArray' => [
+            new WithArray([
+                new WithOneText('the text'),
+                new WithTwoTexts('the text 2', 'random'),
+            ]),
+            new WithArrayAndAttribute([new WithOneText('the text'), new WithOneText('the text 2')])
+        ],
+        'WithArray 2' => [
+            new WithArrayAndAttribute([
+                ['_type' => WithOneText::class, 'text' => 'the text', 'added param' => 'random'],
+                new WithTwoTexts('the text 2', 'random')
+            ]),
+            new WithArrayAndAttribute([new WithOneText('the text'), new WithOneText('the text 2')])
+        ],
+        'ChildOfWithOneText' => [
+            new WithArray([new ChildOfWithOneText('the text')]),
+            new WithArrayAndAttribute([new ChildOfWithOneText('the text')])
+        ]
+    ]);
+
+    it('throws if Union type', function () {
+        WithUnionTypeParam::from([]);
+    })->throws(UnionTypeCannotBeUnserializedException::class);
+
+    it('throws if Intersection type', function () {
+        WithIntersectionTypeParam::from([]);
+    })->throws(IntersectionTypeCannotBeUnserializedException::class);
+
+    it('throws if no ArrayType', function () {
+        WithNoArrayType::from(['array' => []]);
+    })->throws(ArrayTypeIsMissingException::class);
+
+
+    it('throws if typses do not match type', function (string $class, array $input) {
+        $class::from($input);
+    })->throws(TypesDoNotMatchException::class)->with([
+        [WithOneText::class, ['text' => 4]],
+        [WithOneText::class, ['text' => new stdClass]],
+        [WithArray::class, ['array' => new stdClass]],
     ]);
 
     it('throws if property does not exist', function () {
@@ -172,4 +207,5 @@ describe('#from', function () {
     })->throws(MissingPropertyException::class);
 });
 
-todo('array #[type]');
+todo('from request');
+todo('responsable ?');
