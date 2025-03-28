@@ -118,12 +118,14 @@ describe('#from', function () {
         $ellapsed = microtime(true) - $before;
 
         // Assert
-        expect($ellapsed)->toBeLessThan(1);
+        expect($ellapsed)->toBeLessThan(0.5);
     })->with([
+        [10],
         [100],
         [1000],
         [10000],
         [50000],
+        [100000],
     ]);
 
     it('converts from string', function (Serializable $input) {
@@ -188,7 +190,6 @@ describe('#from', function () {
     it('throws if no ArrayType', function () {
         WithNoArrayType::from(['array' => []]);
     })->throws(ArrayTypeIsMissingException::class);
-
 
     it('throws if typses do not match type', function (string $class, array $input) {
         $class::from($input);
