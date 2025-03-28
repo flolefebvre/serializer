@@ -245,13 +245,13 @@ describe('#validate', function () {
         [[], EmptyClass::class],
         'optional' => [[], WithOptionalValue::class],
         'default value' => [['a' => 'value'], WithDefaultValues::class],
+        'empty array' => [['array' => []], WithArray::class]
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
         // Act
         $class::validate(['_type' => $type]);
-    })->throws(TypesDoNotMatchException::class)->with([
-        ['not a class', EmptyClass::class],
+    })->throws(ValidationException::class)->with([
         [EmptyClass::class, ChildOfEmptyClass::class],
         [WithOneText::class, EmptyClass::class]
     ]);
@@ -262,6 +262,8 @@ describe('#validate', function () {
             $class::validate($input);
         } catch (ValidationException $e) {
             $errors = $e->errors();
+            // dump($errors);
+            // dump($e->getMessage());
             expect($errors)->toHaveKeys($errorKeys);
             throw $e;
         }
@@ -270,9 +272,14 @@ describe('#validate', function () {
             'string' => [['text' => 45], WithOneText::class, ['text']],
             'number' => [['number' => 'text'], WithOneInt::class, ['number']],
             'required' => [[], WithOneText::class, ['text']],
+            'array' => [[], WithArray::class, ['array']],
+            'array: missing property in array element' => [['array' => [[]]], WithArrayAndAttribute::class, ['array.0.text']],
+            'array element does not fit' => [['array' => [['_type' => WithTwoTexts::class]]], WithArrayAndAttribute::class, ['array.0._type']],
 
-        ]);
-})->only();
+            // A faire si un elem du tableau a un _type qui est un sous elem (dans ce cas préciser la rule)
+            // Bien check les types
+        ]); //->only();
+});
 
 todo('responsable ?');
 todo('validate');

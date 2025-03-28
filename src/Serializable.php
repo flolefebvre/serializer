@@ -13,6 +13,7 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Flolefebvre\Serializer\rules\TypeExtendsClass;
 
 abstract class Serializable
 {
@@ -34,29 +35,57 @@ abstract class Serializable
         return  $vars;
     }
 
-
-    public static function validate(array $array): void
+    private static function makeValidator(array $array, string $prefix = ''): array
     {
         $type = $array['_type'] ?? static::class;
-        if ($type !== static::class && !is_subclass_of($type, static::class))
-            throw new TypesDoNotMatchException();
+
+        $validator = [
+            $prefix . '_type' => [new TypeExtendsClass(static::class)]
+        ];
 
         $constructor = new ReflectionClass($type)->getConstructor();
-        if ($constructor === null) return;
-        $validator = [];
+        if ($constructor === null) return $validator;
+
         foreach ($constructor->getParameters() as $param) {
             $paramType = $param->getType();
+            $paramName = $param->getName();
 
             if ($paramType instanceof ReflectionNamedType) {
                 $rules = [$paramType->getName()];
                 if (!$paramType->allowsNull() && !$param->isDefaultValueAvailable()) {
-                    $rules[] = 'required';
+                    if ($paramType->getName() === 'array') {
+                        $rules[] = 'present';
+                    } else {
+                        $rules[] = 'required';
+                    }
                 }
+                $validator[$prefix . $paramName] = $rules;
 
-                $validator[$param->getName()] = $rules;
+                if ($paramType->getName() === 'array') {
+                    $attributes = $param->getAttributes(ArrayType::class);
+                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException();
+                    $arrayType = $attributes[0]->newInstance()->type;
+
+                    $value = $array[$paramName] ?? null;
+                    $subValidators = [];
+                    if (is_array($value) && array_is_list($value)) {
+                        foreach ($value as $key => $v) {
+                            $v['_type'] ??= $arrayType;
+                            $subValidators = [...$subValidators, ...$arrayType::makeValidator($v, $paramName . '.' . $key . '.')];
+                        }
+                    }
+
+                    $validator = [...$validator, ...$subValidators];
+                }
             }
         }
 
+        return $validator;
+    }
+
+    public static function validate(array $array): void
+    {
+        $validator = static::makeValidator($array);
         Validator::make($array, $validator)->validate();
     }
 
