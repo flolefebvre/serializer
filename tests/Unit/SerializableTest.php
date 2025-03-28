@@ -1,17 +1,22 @@
 <?php
 
+use Illuminate\Http\Request;
 use Tests\Helper\ClassFactory;
 use Tests\Helper\Classes\WithArray;
 use Tests\Helper\Classes\EmptyClass;
+use Tests\Helper\Classes\WithOneInt;
 use Tests\Helper\Classes\WithOneText;
 use Tests\Helper\Classes\WithSubClass;
 use Tests\Helper\Classes\WithTwoTexts;
 use Flolefebvre\Serializer\Serializable;
 use Tests\Helper\Classes\WithNoArrayType;
 use Tests\Helper\Classes\WithNoTypeParam;
+use Tests\Helper\Classes\ChildOfEmptyClass;
 use Tests\Helper\Classes\WithDefaultValues;
+use Tests\Helper\Classes\WithOptionalValue;
 use Tests\Helper\Classes\ChildOfWithOneText;
 use Tests\Helper\Classes\WithUnionTypeParam;
+use Illuminate\Validation\ValidationException;
 use Tests\Helper\Classes\WithArrayAndAttribute;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
@@ -19,7 +24,6 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Illuminate\Http\Request;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -232,6 +236,43 @@ describe('#fromRequest', function () {
         'WithNoTypeParam' => [new WithNoTypeParam('the text'),],
     ]);
 });
+
+describe('#validate', function () {
+    it('validates based on types and constructor definition (does not throw)', function (array $input, string $class) {
+        // Act
+        $class::validate($input);
+    })->throwsNoExceptions()->with([
+        [[], EmptyClass::class],
+        'optional' => [[], WithOptionalValue::class],
+        'default value' => [['a' => 'value'], WithDefaultValues::class],
+    ]);
+
+    it('fails if _types do not fit', function (string $type, string $class) {
+        // Act
+        $class::validate(['_type' => $type]);
+    })->throws(TypesDoNotMatchException::class)->with([
+        ['not a class', EmptyClass::class],
+        [EmptyClass::class, ChildOfEmptyClass::class],
+        [WithOneText::class, EmptyClass::class]
+    ]);
+
+    it('validates based on types and constructor definition (throws)', function (array $input, string $class, array $errorKeys) {
+        // Act
+        try {
+            $class::validate($input);
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            expect($errors)->toHaveKeys($errorKeys);
+            throw $e;
+        }
+    })->throws(ValidationException::class)
+        ->with([
+            'string' => [['text' => 45], WithOneText::class, ['text']],
+            'number' => [['number' => 'text'], WithOneInt::class, ['number']],
+            'required' => [[], WithOneText::class, ['text']],
+
+        ]);
+})->only();
 
 todo('responsable ?');
 todo('validate');

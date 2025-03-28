@@ -2,16 +2,17 @@
 
 namespace Flolefebvre\Serializer;
 
-use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
-use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
-use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
-use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
-use Illuminate\Http\Request;
 use ReflectionClass;
-use ReflectionIntersectionType;
 use ReflectionNamedType;
 use ReflectionUnionType;
+use Illuminate\Http\Request;
+use ReflectionIntersectionType;
+use Illuminate\Support\Facades\Validator;
+use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
+use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
+use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
+use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
+use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
 
 abstract class Serializable
 {
@@ -31,6 +32,32 @@ abstract class Serializable
             }
         }
         return  $vars;
+    }
+
+
+    public static function validate(array $array): void
+    {
+        $type = $array['_type'] ?? static::class;
+        if ($type !== static::class && !is_subclass_of($type, static::class))
+            throw new TypesDoNotMatchException();
+
+        $constructor = new ReflectionClass($type)->getConstructor();
+        if ($constructor === null) return;
+        $validator = [];
+        foreach ($constructor->getParameters() as $param) {
+            $paramType = $param->getType();
+
+            if ($paramType instanceof ReflectionNamedType) {
+                $rules = [$paramType->getName()];
+                if (!$paramType->allowsNull() && !$param->isDefaultValueAvailable()) {
+                    $rules[] = 'required';
+                }
+
+                $validator[$param->getName()] = $rules;
+            }
+        }
+
+        Validator::make($array, $validator)->validate();
     }
 
     public static function fromRequest(Request $request): static
