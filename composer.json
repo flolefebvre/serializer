@@ -25,5 +25,8 @@
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }
+  },
+  "require": {
+    "laravel/laravel": "^12.0"
   }
 }

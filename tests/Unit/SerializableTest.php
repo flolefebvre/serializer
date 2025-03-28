@@ -19,6 +19,7 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Illuminate\Http\Request;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -179,6 +180,8 @@ describe('#from', function () {
         ]
     ]);
 
+
+
     it('throws if Union type', function () {
         WithUnionTypeParam::from([]);
     })->throws(UnionTypeCannotBeUnserializedException::class);
@@ -208,5 +211,27 @@ describe('#from', function () {
     })->throws(MissingPropertyException::class);
 });
 
-todo('from request');
+describe('#fromRequest', function () {
+    it('converts from Request', function (Serializable $expected) {
+        // Arrange
+        $array = $expected->toArray();
+        $request = Request::create('/route', 'POST', $array);
+
+        // Act
+        $result = get_class($expected)::fromRequest($request);
+
+        // Assert
+        expect($result)->toBeInstanceOf(get_class($expected));
+        expect($result->toArray())->toBe($expected->toArray());
+    })->with([
+        'EmptyClass' => [new EmptyClass()],
+        'WithOneText' => [new WithOneText('the text')],
+        'WithSubClass' => [new WithSubClass(new WithOneText('the text'))],
+        'WithArray' => [new WithArray([new EmptyClass, new WithOneText('the text')])],
+        'WithDefaultValues' => [new WithDefaultValues('a')],
+        'WithNoTypeParam' => [new WithNoTypeParam('the text'),],
+    ]);
+});
+
 todo('responsable ?');
+todo('validate');

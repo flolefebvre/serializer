@@ -7,6 +7,7 @@ use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedExcept
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
+use Illuminate\Http\Request;
 use ReflectionClass;
 use ReflectionIntersectionType;
 use ReflectionNamedType;
@@ -30,6 +31,11 @@ abstract class Serializable
             }
         }
         return  $vars;
+    }
+
+    public static function fromRequest(Request $request): static
+    {
+        return static::from($request->all());
     }
 
     public static function from(array|string|object $input): static
