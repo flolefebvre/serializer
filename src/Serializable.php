@@ -186,4 +186,13 @@ abstract class Serializable implements Arrayable, Responsable
             status: $request->isMethod(Request::METHOD_POST) ? Response::HTTP_CREATED : Response::HTTP_OK
         );
     }
+
+    public static function collect(iterable $iterable): array
+    {
+        $result = [];
+        foreach ($iterable as $item) {
+            $result[] = static::from($item);
+        }
+        return $result;
+    }
 }

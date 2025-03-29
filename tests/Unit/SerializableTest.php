@@ -27,6 +27,7 @@ use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
 use Illuminate\Http\JsonResponse;
+use Pest\Mutate\Mutators\Array\UnwrapArrayMap;
 use Symfony\Component\HttpFoundation\Response;
 
 describe('#toArray', function () {
@@ -288,7 +289,6 @@ describe('#validate', function () {
         ]);
 });
 
-
 describe('#toResponse', function () {
     it('creates a response', function (Request $request, Response $expected) {
         // Arrange
@@ -304,4 +304,19 @@ describe('#toResponse', function () {
         [fn() => Request::create('/url', 'POST'), new JsonResponse(data: new WithOneText('the text')->toArray(), status: Response::HTTP_CREATED)],
         [fn() => Request::create('/url', 'GET'), new JsonResponse(data: new WithOneText('the text')->toArray(), status: Response::HTTP_OK)],
     ]);
+});
+
+describe('#collect', function () {
+    it('creates an array of the type from the input', function () {
+        // Arrange
+        $oneTexts = [new WithOneText('a')->toArray(), ['text' => 'b'], new WithOneText('c')];
+
+        // Act
+        $result = WithOneText::collect($oneTexts);
+
+        // Assert
+        $expected = array_map(fn($letter) => new WithOneText($letter)->toArray(), ['a', 'b', 'c']);
+        expect($result)->each->toBeInstanceOf(WithOneText::class);
+        expect(array_map(fn($r) => $r->toArray(), $result))->toBe($expected);
+    });
 });
