@@ -52,13 +52,14 @@ abstract class Serializable implements Arrayable, Responsable
         if ($constructor === null) return $validator;
 
         foreach ($constructor->getParameters() as $param) {
-            $paramType = $param->getType();
             $paramName = $param->getName();
+            $paramType = $param->getType();
 
             if ($paramType instanceof ReflectionNamedType) {
-                $rules = [$paramType->getName()];
+                $paramTypeName = $paramType->getName();
+                $rules = [];
                 if (!$paramType->allowsNull() && !$param->isDefaultValueAvailable()) {
-                    if ($paramType->getName() === 'array') {
+                    if ($paramTypeName === 'array') {
                         $rules[] = 'present';
                     } else {
                         $rules[] = 'required';
@@ -68,6 +69,13 @@ abstract class Serializable implements Arrayable, Responsable
                 $rulesFromAttributes = array_merge(...array_map(fn($r) => $r->newInstance()->toArray(), $ruleAttributes));
                 $rules = [...$rules, ...$rulesFromAttributes];
 
+                if (class_exists($paramTypeName)) {
+                    $value = $array[$paramName] ?? [];
+                    $validator = [...$validator, ...$paramTypeName::makeValidator($value, $paramName . '.')];
+                } else {
+                    $rules[] = $paramType->getName();
+                }
+
                 $validator[$prefix . $paramName] = $rules;
 
                 if ($paramType->getName() === 'array') {
@@ -75,16 +83,21 @@ abstract class Serializable implements Arrayable, Responsable
                     if (count($attributes) !== 1) throw new ArrayTypeIsMissingException();
                     $arrayType = $attributes[0]->newInstance()->type;
 
-                    $value = $array[$paramName] ?? null;
-                    $subValidators = [];
-                    if (is_array($value) && array_is_list($value)) {
-                        foreach ($value as $key => $v) {
-                            $v['_type'] ??= $arrayType;
-                            $subValidators = [...$subValidators, ...$arrayType::makeValidator($v, $paramName . '.' . $key . '.')];
+                    if ($arrayType == 'mixed') continue;
+                    elseif (class_exists($arrayType)) {
+                        $value = $array[$paramName] ?? null;
+                        $subValidators = [];
+                        if (is_array($value) && array_is_list($value)) {
+                            foreach ($value as $key => $v) {
+                                $v['_type'] ??= $arrayType;
+                                $subValidators = [...$subValidators, ...$arrayType::makeValidator($v, $paramName . '.' . $key . '.')];
+                            }
                         }
+                        $validator = [...$validator, ...$subValidators];
+                    } else {
+                        $subValidators = [$paramName . '.*' => $arrayType];
+                        $validator = [...$validator, ...$subValidators];
                     }
-
-                    $validator = [...$validator, ...$subValidators];
                 }
             }
         }
@@ -100,7 +113,9 @@ abstract class Serializable implements Arrayable, Responsable
 
     public static function fromRequest(Request $request): static
     {
-        return static::from($request->all());
+        $data = $request->all();
+        static::validate($data);
+        return static::from($data);
     }
 
     public static function from(array|string|object $input): static
@@ -165,8 +180,16 @@ abstract class Serializable implements Arrayable, Responsable
                     if (count($attributes) !== 1) throw new ArrayTypeIsMissingException();
                     $arrayType = $attributes[0]->newInstance()->type;
 
-                    foreach ($elementFromArray as &$v) {
-                        $v = $arrayType::from($v);
+                    if ($arrayType !== 'mixed') {
+                        if (class_exists($arrayType)) {
+                            foreach ($elementFromArray as &$v) {
+                                $v = $arrayType::from($v);
+                            }
+                        } else {
+                            foreach ($elementFromArray as &$v) {
+                                if (gettype($v) !== $arrayType) throw new TypesDoNotMatchException();
+                            }
+                        }
                     }
                 } elseif (class_exists($typeName)) {
                     $elementFromArray = $typeName::from($elementFromArray);

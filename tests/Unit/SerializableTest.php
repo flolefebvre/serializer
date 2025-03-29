@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Tests\Helper\ClassFactory;
+use Illuminate\Http\JsonResponse;
 use Tests\Helper\Classes\WithArray;
 use Tests\Helper\Classes\EmptyClass;
 use Tests\Helper\Classes\WithOneInt;
@@ -11,13 +12,18 @@ use Tests\Helper\Classes\WithTwoTexts;
 use Flolefebvre\Serializer\Serializable;
 use Tests\Helper\Classes\WithNoArrayType;
 use Tests\Helper\Classes\WithNoTypeParam;
+use Tests\Helper\Classes\WithArrayOfMixed;
 use Tests\Helper\Classes\ChildOfEmptyClass;
+use Tests\Helper\Classes\WithArrayOfArrays;
 use Tests\Helper\Classes\WithAttributeRule;
 use Tests\Helper\Classes\WithDefaultValues;
 use Tests\Helper\Classes\WithOptionalValue;
 use Tests\Helper\Classes\ChildOfWithOneText;
+use Tests\Helper\Classes\WithArrayOfStrings;
 use Tests\Helper\Classes\WithUnionTypeParam;
 use Illuminate\Validation\ValidationException;
+use Pest\Mutate\Mutators\Array\UnwrapArrayMap;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Helper\Classes\WithArrayAndAttribute;
 use Tests\Helper\Classes\WithCombinationOfRules;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
@@ -26,9 +32,6 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Illuminate\Http\JsonResponse;
-use Pest\Mutate\Mutators\Array\UnwrapArrayMap;
-use Symfony\Component\HttpFoundation\Response;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -50,7 +53,10 @@ describe('#toArray', function () {
                 ['_type' => EmptyClass::class],
                 ['_type' => WithOneText::class, 'text' => 'the text']
             ]
-        ]]
+        ]],
+        'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b']), ['_type' => WithArrayOfStrings::class, 'array' => ['a', 'b']]],
+        'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']]), ['_type' => WithArrayOfArrays::class, 'array' => [[], ['b' => 'c']]]],
+        'WithArrayOfMixed' => [new WithArrayOfMixed(['a', ['b' => 'c']]), ['_type' => WithArrayOfMixed::class, 'array' => ['a', ['b' => 'c']]]]
     ]);
 
     it('is fast', function (int $n) {
@@ -90,6 +96,9 @@ describe('#from', function () {
         'WithArray' => [new WithArray([new EmptyClass, new WithOneText('the text')])],
         'WithDefaultValues' => [new WithDefaultValues('a')],
         'WithNoTypeParam' => [new WithNoTypeParam('the text'),],
+        'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b'])],
+        'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']])],
+        'WithArrayOfMixed' => [new WithArrayOfMixed(['a', 5, ['b' => 'c']])],
     ]);
 
     it('unserializes from array with additionnal data', function (Serializable $input, array $array) {
@@ -189,8 +198,6 @@ describe('#from', function () {
         ]
     ]);
 
-
-
     it('throws if Union type', function () {
         WithUnionTypeParam::from([]);
     })->throws(UnionTypeCannotBeUnserializedException::class);
@@ -203,12 +210,13 @@ describe('#from', function () {
         WithNoArrayType::from(['array' => []]);
     })->throws(ArrayTypeIsMissingException::class);
 
-    it('throws if typses do not match type', function (string $class, array $input) {
+    it('throws if types do not match type', function (string $class, array $input) {
         $class::from($input);
     })->throws(TypesDoNotMatchException::class)->with([
         [WithOneText::class, ['text' => 4]],
         [WithOneText::class, ['text' => new stdClass]],
         [WithArray::class, ['array' => new stdClass]],
+        [WithArrayOfStrings::class, ['array' => [4]]]
     ]);
 
     it('throws if property does not exist', function () {
@@ -240,6 +248,14 @@ describe('#fromRequest', function () {
         'WithDefaultValues' => [new WithDefaultValues('a')],
         'WithNoTypeParam' => [new WithNoTypeParam('the text'),],
     ]);
+
+    it('validates', function () {
+        // Arrange
+        $request = Request::create('/route', 'POST', []);
+
+        // Act
+        WithOneText::fromRequest($request);
+    })->throws(ValidationException::class);
 });
 
 describe('#validate', function () {
@@ -254,6 +270,10 @@ describe('#validate', function () {
         'array' => [['array' => [['_type' => WithOneText::class, 'text' => 'the text']]], WithArrayAndAttribute::class],
         'more element than necessary' => [['_type' => WithOneText::class, 'text' => 'the text', 'other' => 'value'], WithOneText::class],
         'with combination of attribute rules' => [['text' => 'f@a.c'], WithCombinationOfRules::class],
+        'WithArrayOfStrings' => [['array' => ['a', 'b']], WithArrayOfStrings::class],
+        'WithArrayOfArrays' => [['array' => [[], ['b' => 'c']]], WithArrayOfArrays::class],
+        'WithArrayOfMixed' => [['array' => ['a', ['b' => 'c']]], WithArrayOfMixed::class],
+        'WithSubClass' => [new WithSubClass(new WithOneText('the text'))->toArray(), WithSubClass::class],
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
@@ -286,6 +306,9 @@ describe('#validate', function () {
             'with combination of attribute rules' => [['text' => 'aaaaaaaaaaaaaaaaaaaaaaa'], WithCombinationOfRules::class, ['text']],
             'with combination of attribute rules' => [['text' => 'abcd'], WithCombinationOfRules::class, ['text']],
             'with combination of attribute rules' => [['text' => 'a@b.cd'], WithCombinationOfRules::class, ['text']],
+            'WithArrayOfStrings' => [['array' => ['a', 4]], WithArrayOfStrings::class, ['array.1']],
+            'WithArrayOfArrays' => [['array' => ['a', ['b' => 'c']]], WithArrayOfArrays::class, ['array.0']],
+            'WithSubClass' => [['subClass' => ['text' => 4]], WithSubClass::class, ['subClass.text']],
         ]);
 });
 
@@ -320,3 +343,5 @@ describe('#collect', function () {
         expect(array_map(fn($r) => $r->toArray(), $result))->toBe($expected);
     });
 });
+
+todo('arrayrule for scalar elements ?');
