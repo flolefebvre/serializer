@@ -41,8 +41,8 @@
     }
   },
   "require": {
-    "laravel/laravel": "^12.0",
-    "laravel/sanctum": "^4.0"
+    "laravel/sanctum": "^4.0",
+    "laravel/framework": "^12.3"
   },
   "autoload-dev": {
     "psr-4": {
