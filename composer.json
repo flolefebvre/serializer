@@ -1,53 +1,61 @@
 {
-    "name": "flolefebvre/serializer",
-    "type": "library",
-    "version": "1.0.0",
-    "require-dev": {
-        "pestphp/pest": "^3.7",
-        "orchestra/testbench": "^10.1"
-    },
-    "license": "MIT",
-    "scripts": {
-        "test": "pest",
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "build": "@php vendor/bin/testbench workbench:build --ansi",
-        "serve": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build",
-            "@php vendor/bin/testbench serve --ansi"
-        ]
-    },
-    "autoload": {
-        "psr-4": {
-            "Flolefebvre\\Serializer\\": "src/",
-            "Tests\\": "tests/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Florian Lefebvre",
-            "email": "florian.lefebvre.contact@gmail.com"
-        }
+  "name": "flolefebvre/serializer",
+  "type": "library",
+  "version": "1.0.0",
+  "require-dev": {
+    "pestphp/pest": "^3.7",
+    "orchestra/testbench": "^10.1",
+    "pestphp/pest-plugin-laravel": "^3.1"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "pest",
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
     ],
-    "config": {
-        "allow-plugins": {
-            "pestphp/pest-plugin": true
-        }
-    },
-    "require": {
-        "laravel/laravel": "^12.0",
-        "laravel/sanctum": "^4.0"
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Workbench\\App\\": "workbench/app/",
-            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
-            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
-        }
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": "@php vendor/bin/testbench workbench:build --ansi",
+    "serve": [
+      "Composer\\Config::disableProcessTimeout",
+      "@build",
+      "@php vendor/bin/testbench serve --ansi"
+    ]
+  },
+  "autoload": {
+    "psr-4": {
+      "Flolefebvre\\Serializer\\": "src/",
+      "Tests\\": "tests/"
     }
+  },
+  "authors": [
+    {
+      "name": "Florian Lefebvre",
+      "email": "florian.lefebvre.contact@gmail.com"
+    }
+  ],
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "require": {
+    "laravel/laravel": "^12.0",
+    "laravel/sanctum": "^4.0"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Workbench\\App\\": "workbench/app/",
+      "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+      "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Flolefebvre\\Serializer\\ServiceProvider"
+      ]
+    }
+  }
 }

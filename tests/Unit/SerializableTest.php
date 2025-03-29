@@ -305,5 +305,3 @@ describe('#toResponse', function () {
         [fn() => Request::create('/url', 'GET'), new JsonResponse(data: new WithOneText('the text')->toArray(), status: Response::HTTP_OK)],
     ]);
 });
-
-todo('inject provider');
