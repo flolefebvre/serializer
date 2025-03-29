@@ -26,6 +26,8 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -286,5 +288,22 @@ describe('#validate', function () {
         ]);
 });
 
-todo('responsable ?');
-todo('arrayable ?');
+
+describe('#toResponse', function () {
+    it('creates a response', function (Request $request, Response $expected) {
+        // Arrange
+        $data = new WithOneText('the text');
+
+        // Act
+        $response = $data->toResponse($request);
+
+        // Assert
+        expect($response->getContent())->toEqual($expected->getContent());
+        expect($response->getStatusCode())->toEqual($expected->getStatusCode());
+    })->with([
+        [fn() => Request::create('/url', 'POST'), new JsonResponse(data: new WithOneText('the text')->toArray(), status: Response::HTTP_CREATED)],
+        [fn() => Request::create('/url', 'GET'), new JsonResponse(data: new WithOneText('the text')->toArray(), status: Response::HTTP_OK)],
+    ]);
+});
+
+todo('inject provider');

@@ -16,8 +16,11 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
-abstract class Serializable implements Arrayable
+abstract class Serializable implements Arrayable, Responsable
 {
     public function toArray(): array
     {
@@ -174,5 +177,13 @@ abstract class Serializable implements Arrayable
         }
 
         return new $type(...$params);
+    }
+
+    public function toResponse($request)
+    {
+        return new JsonResponse(
+            data: $this->toArray(),
+            status: $request->isMethod(Request::METHOD_POST) ? Response::HTTP_CREATED : Response::HTTP_OK
+        );
     }
 }
