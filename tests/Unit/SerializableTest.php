@@ -12,12 +12,14 @@ use Flolefebvre\Serializer\Serializable;
 use Tests\Helper\Classes\WithNoArrayType;
 use Tests\Helper\Classes\WithNoTypeParam;
 use Tests\Helper\Classes\ChildOfEmptyClass;
+use Tests\Helper\Classes\WithAttributeRule;
 use Tests\Helper\Classes\WithDefaultValues;
 use Tests\Helper\Classes\WithOptionalValue;
 use Tests\Helper\Classes\ChildOfWithOneText;
 use Tests\Helper\Classes\WithUnionTypeParam;
 use Illuminate\Validation\ValidationException;
 use Tests\Helper\Classes\WithArrayAndAttribute;
+use Tests\Helper\Classes\WithCombinationOfRules;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
@@ -245,7 +247,10 @@ describe('#validate', function () {
         [[], EmptyClass::class],
         'optional' => [[], WithOptionalValue::class],
         'default value' => [['a' => 'value'], WithDefaultValues::class],
-        'empty array' => [['array' => []], WithArray::class]
+        'empty array' => [['array' => []], WithArray::class],
+        'array' => [['array' => [['_type' => WithOneText::class, 'text' => 'the text']]], WithArrayAndAttribute::class],
+        'more element than necessary' => [['_type' => WithOneText::class, 'text' => 'the text', 'other' => 'value'], WithOneText::class],
+        'with combination of attribute rules' => [['text' => 'f@a.c'], WithCombinationOfRules::class],
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
@@ -262,8 +267,6 @@ describe('#validate', function () {
             $class::validate($input);
         } catch (ValidationException $e) {
             $errors = $e->errors();
-            // dump($errors);
-            // dump($e->getMessage());
             expect($errors)->toHaveKeys($errorKeys);
             throw $e;
         }
@@ -275,11 +278,13 @@ describe('#validate', function () {
             'array' => [[], WithArray::class, ['array']],
             'array: missing property in array element' => [['array' => [[]]], WithArrayAndAttribute::class, ['array.0.text']],
             'array element does not fit' => [['array' => [['_type' => WithTwoTexts::class]]], WithArrayAndAttribute::class, ['array.0._type']],
-
-            // A faire si un elem du tableau a un _type qui est un sous elem (dans ce cas préciser la rule)
-            // Bien check les types
-        ]); //->only();
+            'with attribute rule' => [['text' => 'a'], WithAttributeRule::class, ['text']],
+            'with combination of attribute rules' => [['text' => 'a'], WithCombinationOfRules::class, ['text']],
+            'with combination of attribute rules' => [['text' => 'aaaaaaaaaaaaaaaaaaaaaaa'], WithCombinationOfRules::class, ['text']],
+            'with combination of attribute rules' => [['text' => 'abcd'], WithCombinationOfRules::class, ['text']],
+            'with combination of attribute rules' => [['text' => 'a@b.cd'], WithCombinationOfRules::class, ['text']],
+        ]);
 });
 
 todo('responsable ?');
-todo('validate');
+todo('arrayable ?');

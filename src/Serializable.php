@@ -13,6 +13,7 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Flolefebvre\Serializer\Rules\Rule;
 use Flolefebvre\Serializer\rules\TypeExtendsClass;
 
 abstract class Serializable
@@ -59,6 +60,10 @@ abstract class Serializable
                         $rules[] = 'required';
                     }
                 }
+                $ruleAttributes = $param->getAttributes(Rule::class);
+                $rulesFromAttributes = array_merge(...array_map(fn($r) => $r->newInstance()->toArray(), $ruleAttributes));
+                $rules = [...$rules, ...$rulesFromAttributes];
+
                 $validator[$prefix . $paramName] = $rules;
 
                 if ($paramType->getName() === 'array') {
