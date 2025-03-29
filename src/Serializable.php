@@ -7,16 +7,17 @@ use ReflectionNamedType;
 use ReflectionUnionType;
 use Illuminate\Http\Request;
 use ReflectionIntersectionType;
+use Flolefebvre\Serializer\Rules\Rule;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Contracts\Support\Arrayable;
+use Flolefebvre\Serializer\rules\TypeExtendsClass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Flolefebvre\Serializer\Rules\Rule;
-use Flolefebvre\Serializer\rules\TypeExtendsClass;
 
-abstract class Serializable
+abstract class Serializable implements Arrayable
 {
     public function toArray(): array
     {
