@@ -58,20 +58,23 @@ abstract class Serializable implements Arrayable, Responsable
             if ($paramType instanceof ReflectionNamedType) {
                 $paramTypeName = $paramType->getName();
                 $rules = [];
-                if (!$paramType->allowsNull() && !$param->isDefaultValueAvailable()) {
+                if ($paramType->allowsNull() || $param->isDefaultValueAvailable()) {
+                    $rules[] = 'nullable';
+                } else {
                     if ($paramTypeName === 'array') {
                         $rules[] = 'present';
                     } else {
                         $rules[] = 'required';
                     }
                 }
+
                 $ruleAttributes = $param->getAttributes(Rule::class);
                 $rulesFromAttributes = array_merge(...array_map(fn($r) => $r->newInstance()->toArray(), $ruleAttributes));
                 $rules = [...$rules, ...$rulesFromAttributes];
 
-                if (class_exists($paramTypeName)) {
-                    $value = $array[$paramName] ?? [];
-                    $validator = [...$validator, ...$paramTypeName::makeValidator($value, $paramName . '.')];
+                if (class_exists($paramTypeName) && isset($array[$paramName])) {
+                    $value = $array[$paramName];
+                    $validator = [...$validator, ...$paramTypeName::makeValidator($value, $prefix . $paramName . '.')];
                 } else {
                     $rules[] = $paramType->getName();
                 }
@@ -80,7 +83,7 @@ abstract class Serializable implements Arrayable, Responsable
 
                 if ($paramType->getName() === 'array') {
                     $attributes = $param->getAttributes(ArrayType::class);
-                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException();
+                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException($type);
                     $arrayType = $attributes[0]->newInstance()->type;
 
                     if ($arrayType == 'mixed') continue;
@@ -90,7 +93,7 @@ abstract class Serializable implements Arrayable, Responsable
                         if (is_array($value) && array_is_list($value)) {
                             foreach ($value as $key => $v) {
                                 $v['_type'] ??= $arrayType;
-                                $subValidators = [...$subValidators, ...$arrayType::makeValidator($v, $paramName . '.' . $key . '.')];
+                                $subValidators = [...$subValidators, ...$arrayType::makeValidator($v, $prefix . $paramName . '.' . $key . '.')];
                             }
                         }
                         $validator = [...$validator, ...$subValidators];
@@ -153,11 +156,14 @@ abstract class Serializable implements Arrayable, Responsable
                 throw new UnionTypeCannotBeUnserializedException();
             }
 
-            // If we don't have the value, use default value if available
+            // If we don't have the value, use default value if available or sets null if nullable
             // If not, throw properly (to avoid throwing when trying to instantiate the class later)
             if (!isset($input[$name])) {
                 if ($param->isDefaultValueAvailable()) {
                     $params[$name] = $param->getDefaultValue();
+                    continue;
+                } elseif ($param->allowsNull()) {
+                    $params[$name] = null;
                     continue;
                 } else {
                     throw new MissingPropertyException();
@@ -177,7 +183,7 @@ abstract class Serializable implements Arrayable, Responsable
                     if ($elementFromArrayType !== 'array') throw new TypesDoNotMatchException();
 
                     $attributes = $param->getAttributes(ArrayType::class);
-                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException();
+                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException($type);
                     $arrayType = $attributes[0]->newInstance()->type;
 
                     if ($arrayType !== 'mixed') {

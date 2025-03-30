@@ -17,16 +17,19 @@ use Tests\Helper\Classes\ChildOfEmptyClass;
 use Tests\Helper\Classes\WithArrayOfArrays;
 use Tests\Helper\Classes\WithAttributeRule;
 use Tests\Helper\Classes\WithDefaultValues;
+use Tests\Helper\Classes\WithOptionalArray;
+use Tests\Helper\Classes\WithOptionalClass;
 use Tests\Helper\Classes\WithOptionalValue;
 use Tests\Helper\Classes\ChildOfWithOneText;
 use Tests\Helper\Classes\WithArrayOfStrings;
 use Tests\Helper\Classes\WithUnionTypeParam;
+use Tests\Helper\Classes\WithArrayOfSubClass;
 use Illuminate\Validation\ValidationException;
-use Pest\Mutate\Mutators\Array\UnwrapArrayMap;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Helper\Classes\WithArrayAndAttribute;
 use Tests\Helper\Classes\WithCombinationOfRules;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
+use Tests\Helper\Classes\WithArrayOfArrayOfSubclass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
@@ -56,7 +59,8 @@ describe('#toArray', function () {
         ]],
         'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b']), ['_type' => WithArrayOfStrings::class, 'array' => ['a', 'b']]],
         'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']]), ['_type' => WithArrayOfArrays::class, 'array' => [[], ['b' => 'c']]]],
-        'WithArrayOfMixed' => [new WithArrayOfMixed(['a', ['b' => 'c']]), ['_type' => WithArrayOfMixed::class, 'array' => ['a', ['b' => 'c']]]]
+        'WithArrayOfMixed' => [new WithArrayOfMixed(['a', ['b' => 'c']]), ['_type' => WithArrayOfMixed::class, 'array' => ['a', ['b' => 'c']]]],
+        'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class, 'text' => null]]
     ]);
 
     it('is fast', function (int $n) {
@@ -99,6 +103,9 @@ describe('#from', function () {
         'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b'])],
         'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']])],
         'WithArrayOfMixed' => [new WithArrayOfMixed(['a', 5, ['b' => 'c']])],
+        'WithOptionalValue' => [new WithOptionalValue(null)],
+        'WithOptionalClass' => [new WithOptionalClass(null)],
+        'WithOptionalArray' => [new WithOptionalArray(null)],
     ]);
 
     it('unserializes from array with additionnal data', function (Serializable $input, array $array) {
@@ -122,7 +129,10 @@ describe('#from', function () {
             ],
             'added param' => 'random'
         ]],
-        'WithDefaultValues' => [new WithDefaultValues('value'), ['_type' => WithDefaultValues::class, 'a' => 'value', 'c' => 'random']]
+        'WithDefaultValues' => [new WithDefaultValues('value'), ['_type' => WithDefaultValues::class, 'a' => 'value', 'c' => 'random']],
+        'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class]],
+        'WithOptionalClass' => [new WithOptionalClass(null), ['_type' => WithOptionalClass::class]],
+        'WithOptionalArray' => [new WithOptionalArray(null), ['_type' => WithOptionalArray::class]],
     ]);
 
     it('is fast', function (int $n) {
@@ -274,6 +284,13 @@ describe('#validate', function () {
         'WithArrayOfArrays' => [['array' => [[], ['b' => 'c']]], WithArrayOfArrays::class],
         'WithArrayOfMixed' => [['array' => ['a', ['b' => 'c']]], WithArrayOfMixed::class],
         'WithSubClass' => [new WithSubClass(new WithOneText('the text'))->toArray(), WithSubClass::class],
+        'WithOptionalValue' => [['_type' => WithOptionalValue::class], WithOptionalValue::class],
+        'WithOptionalClass' => [['_type' => WithOptionalClass::class], WithOptionalClass::class],
+        'WithOptionalArray' => [['_type' => WithOptionalArray::class], WithOptionalArray::class],
+        'WithArrayOfSubClass' => [new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])->toArray(), WithArrayOfSubClass::class],
+        'WithArrayOfArrayOfSubclass' => [new WithArrayOfArrayOfSubclass([
+            new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])
+        ])->toArray(), WithArrayOfArrayOfSubclass::class]
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
@@ -309,6 +326,7 @@ describe('#validate', function () {
             'WithArrayOfStrings' => [['array' => ['a', 4]], WithArrayOfStrings::class, ['array.1']],
             'WithArrayOfArrays' => [['array' => ['a', ['b' => 'c']]], WithArrayOfArrays::class, ['array.0']],
             'WithSubClass' => [['subClass' => ['text' => 4]], WithSubClass::class, ['subClass.text']],
+            'WithOptionalClass' => [['_type' => WithOptionalClass::class, 'class' => []], WithOptionalClass::class, ['class.text']],
         ]);
 });
 
