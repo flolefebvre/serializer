@@ -10,7 +10,7 @@ use ReflectionIntersectionType;
 use Flolefebvre\Serializer\Rules\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Contracts\Support\Arrayable;
-use Flolefebvre\Serializer\rules\TypeExtendsClass;
+use Flolefebvre\Serializer\Rules\TypeExtendsClass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;

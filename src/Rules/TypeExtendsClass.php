@@ -1,6 +1,6 @@
 <?php
 
-namespace Flolefebvre\Serializer\rules;
+namespace Flolefebvre\Serializer\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;

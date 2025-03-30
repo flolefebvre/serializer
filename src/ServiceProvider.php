@@ -8,7 +8,6 @@ use Illuminate\Support\ServiceProvider as LaravelServiceProvider;
 
 class ServiceProvider extends LaravelServiceProvider
 {
-
     public function register(): void
     {
         $this->app->beforeResolving(Serializable::class, function ($class, $parameters, $app) {
