@@ -172,7 +172,7 @@ abstract class Serializable implements Arrayable, Responsable
                 $elementFromArrayType = gettype($elementFromArray);
 
                 if (in_array($typeName, ['bool', 'int', 'float', 'string'])) {
-                    if ($elementFromArrayType !== $typeName) throw new TypesDoNotMatchException();
+                    if (!static::isSameType($elementFromArrayType, $typeName)) throw new TypesDoNotMatchException();
                 } elseif ($typeName == 'array') {
                     if ($elementFromArrayType !== 'array') throw new TypesDoNotMatchException();
 
@@ -187,7 +187,7 @@ abstract class Serializable implements Arrayable, Responsable
                             }
                         } else {
                             foreach ($elementFromArray as &$v) {
-                                if (gettype($v) !== $arrayType) throw new TypesDoNotMatchException();
+                                if (!static::isSameType(gettype($v), $arrayType)) throw new TypesDoNotMatchException();
                             }
                         }
                     }
@@ -217,5 +217,26 @@ abstract class Serializable implements Arrayable, Responsable
             $result[] = static::from($item);
         }
         return $result;
+    }
+
+    private static function isSameType(string $a, string $b): bool
+    {
+        return static::normalize($a) === static::normalize($b);
+    }
+
+    private static function normalize(string $type): string
+    {
+        return match (strtolower($type)) {
+            'int', 'integer' => 'int',
+            'bool', 'boolean' => 'bool',
+            'float', 'double', 'real' => 'float',
+            'string' => 'string',
+            'array' => 'array',
+            'object' => 'object',
+            'null' => 'null',
+            'mixed' => 'mixed',
+            'callable' => 'callable',
+            default => $type, // pour les classes, interfaces, etc.
+        };
     }
 }
