@@ -87,9 +87,7 @@ class PostController extends Controller
 {
     public function show(Post $post)
     {
-        return Inertia::render('Post/Show', [
-            'post' => $post,
-        ]);
+        return Inertia::render('Post/Show', $post);
     }
 }
 ```
@@ -109,13 +107,15 @@ use App\Data\Post;
 
 class Blog extends Model
 {
-    protected $casts = [
-        // For a single DTO instance:
-        'post' => SerializableCast::class . ':' . Post::class,
+    public function casts() {
+        return [
+            // For a single DTO instance:
+            'post' => SerializableCast::class . ':' . Post::class,
 
-        // For a list of DTOs:
-        'posts' => SerializableCast::class . ':' . Post::class . ':list',
-    ];
+            // For a list of DTOs:
+            'posts' => SerializableCast::class . ':' . Post::class . ':list',
+        ];
+    }
 }
 ```
 
