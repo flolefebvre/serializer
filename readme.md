@@ -110,10 +110,10 @@ class Blog extends Model
     public function casts() {
         return [
             // For a single DTO instance:
-            'post' => SerializableCast::class . ':' . Post::class,
+            'post' => Post::class,
 
             // For a list of DTOs:
-            'posts' => SerializableCast::class . ':' . Post::class . ':list',
+            'posts' => Post::class . ':list',
         ];
     }
 }
