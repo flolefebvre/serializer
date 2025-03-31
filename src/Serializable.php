@@ -2,6 +2,7 @@
 
 namespace Flolefebvre\Serializer;
 
+use ErrorException;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionUnionType;
@@ -121,6 +122,18 @@ abstract class Serializable implements Arrayable, Responsable
         return static::from($data);
     }
 
+    private static function getValue(array|object $input, string $name): mixed
+    {
+        if (is_array($input)) return $input[$name] ?? null;
+        else {
+            try {
+                return $input->$name;
+            } catch (ErrorException) {
+                return null;
+            }
+        }
+    }
+
     public static function from(array|string|object $input): static
     {
         $type = null;
@@ -129,12 +142,11 @@ abstract class Serializable implements Arrayable, Responsable
         if (is_string($input)) $input = json_decode($input, true);
         if (is_object($input)) {
             $type = get_class($input);
-            $input = get_object_vars($input);
         }
 
         // Get the right type
         if (!is_subclass_of($type,  static::class)) {
-            $type = $input['_type'] ?? static::class;
+            $type = static::getValue($input, '_type') ?? static::class;
         }
 
         $constructor = new ReflectionClass($type)->getConstructor();
@@ -156,9 +168,12 @@ abstract class Serializable implements Arrayable, Responsable
                 throw new UnionTypeCannotBeUnserializedException();
             }
 
+            // Find the right way to use the value
+            $valueFromInput = static::getValue($input, $name);
+
             // If we don't have the value, use default value if available or sets null if nullable
             // If not, throw properly (to avoid throwing when trying to instantiate the class later)
-            if (!isset($input[$name])) {
+            if ($valueFromInput === null) {
                 if ($param->isDefaultValueAvailable()) {
                     $params[$name] = $param->getDefaultValue();
                     continue;
@@ -170,12 +185,9 @@ abstract class Serializable implements Arrayable, Responsable
                 }
             }
 
-            // Find the right way to use the value
-            $elementFromArray = $input[$name];
-
             if ($paramType instanceof ReflectionNamedType) {
                 $typeName = $paramType->getName();
-                $elementFromArrayType = gettype($elementFromArray);
+                $elementFromArrayType = gettype($valueFromInput);
 
                 if (in_array($typeName, ['bool', 'int', 'float', 'string'])) {
                     if (!static::isSameType($elementFromArrayType, $typeName)) throw new TypesDoNotMatchException();
@@ -188,21 +200,21 @@ abstract class Serializable implements Arrayable, Responsable
 
                     if ($arrayType !== 'mixed') {
                         if (class_exists($arrayType)) {
-                            foreach ($elementFromArray as &$v) {
+                            foreach ($valueFromInput as &$v) {
                                 $v = $arrayType::from($v);
                             }
                         } else {
-                            foreach ($elementFromArray as &$v) {
+                            foreach ($valueFromInput as &$v) {
                                 if (!static::isSameType(gettype($v), $arrayType)) throw new TypesDoNotMatchException();
                             }
                         }
                     }
                 } elseif (class_exists($typeName)) {
-                    $elementFromArray = $typeName::from($elementFromArray);
+                    $valueFromInput = $typeName::from($valueFromInput);
                 }
             }
 
-            $params[] = $elementFromArray;
+            $params[] = $valueFromInput;
         }
 
         return new $type(...$params);

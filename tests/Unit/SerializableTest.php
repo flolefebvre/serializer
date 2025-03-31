@@ -27,6 +27,7 @@ use Tests\Helper\Classes\WithArrayOfSubClass;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Helper\Classes\WithArrayAndAttribute;
+use Tests\Helper\Classes\WithOneNotPropertyText;
 use Tests\Helper\Classes\WithCombinationOfRules;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
 use Tests\Helper\Classes\WithArrayOfArrayOfSubclass;
@@ -134,6 +135,17 @@ describe('#from', function () {
         'WithOptionalClass' => [new WithOptionalClass(null), ['_type' => WithOptionalClass::class]],
         'WithOptionalArray' => [new WithOptionalArray(null), ['_type' => WithOptionalArray::class]],
     ]);
+
+    it('unserializes from object with accessible values but not public properties', function () {
+        // Arrange
+        $input = new WithOneNotPropertyText();
+
+        // Act
+        $result = WithOneText::from($input);
+
+        // Assert
+        expect($result)->toEqual(new WithOneText('the text'));
+    });
 
     it('is fast', function (int $n) {
         // Arrange
