@@ -38,8 +38,10 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Tests\Helper\Classes\WithCamelCase;
 use Tests\Helper\Classes\WithCarbonDate;
 use Tests\Helper\Classes\WithInversedOrderedProperties;
+use Tests\Helper\Classes\WithSnakeCase;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -173,6 +175,14 @@ describe('#from', function () {
             ]
         ],
     ]);
+
+    it('unserializes if the source has snake case version of the variable', function () {
+        // Act
+        $result = WithCamelCase::from(new WithSnakeCase(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')));
+
+        // Assert
+        expect($result)->toEqual(new WithCamelCase(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')));
+    });
 
     it('unserializes from object with accessible values but not public properties', function () {
         // Arrange

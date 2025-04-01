@@ -4,12 +4,12 @@ namespace Flolefebvre\Serializer;
 
 use Carbon\Carbon;
 use ErrorException;
-use Flolefebvre\Serializer\Casts\CarbonStringCast;
 use ReflectionClass;
 use ReflectionProperty;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionUnionType;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use ReflectionIntersectionType;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +19,7 @@ use Flolefebvre\Serializer\Casts\TypeCast;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Responsable;
 use Symfony\Component\HttpFoundation\Response;
+use Flolefebvre\Serializer\Casts\CarbonStringCast;
 use Flolefebvre\Serializer\Rules\TypeExtendsClass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
@@ -176,7 +177,7 @@ abstract class Serializable implements Arrayable, Responsable
         return static::from($data);
     }
 
-    private static function getValue(array|object $input, string $name): mixed
+    private static function getValueWithName(array|object $input, string $name): mixed
     {
         if (is_array($input)) return $input[$name] ?? null;
         else {
@@ -186,6 +187,13 @@ abstract class Serializable implements Arrayable, Responsable
                 return null;
             }
         }
+    }
+
+    private static function getValue(array|object $input, string $name): mixed
+    {
+        $value = static::getValueWithName($input, $name);
+        if ($value !== null) return $value;
+        else return static::getValueWithName($input, Str::snake($name));
     }
 
     public static function from(array|string|object $input): static
@@ -235,7 +243,7 @@ abstract class Serializable implements Arrayable, Responsable
                     $params[$name] = null;
                     continue;
                 } else {
-                    throw new MissingPropertyException();
+                    throw new MissingPropertyException($name, $type);
                 }
             }
 
