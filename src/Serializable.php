@@ -4,41 +4,74 @@ namespace Flolefebvre\Serializer;
 
 use ErrorException;
 use ReflectionClass;
+use ReflectionProperty;
 use ReflectionNamedType;
+use ReflectionParameter;
 use ReflectionUnionType;
 use Illuminate\Http\Request;
 use ReflectionIntersectionType;
+use Illuminate\Http\JsonResponse;
 use Flolefebvre\Serializer\Rules\Rule;
 use Illuminate\Support\Facades\Validator;
+use Flolefebvre\Serializer\Casts\TypeCast;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Contracts\Support\Responsable;
+use Symfony\Component\HttpFoundation\Response;
 use Flolefebvre\Serializer\Rules\TypeExtendsClass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Illuminate\Contracts\Support\Responsable;
-use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 
 abstract class Serializable implements Arrayable, Responsable
 {
     public function toArray(): array
     {
-        $vars = get_object_vars($this);
-        $vars['_type'] = static::class;
-        ksort($vars);
-        foreach ($vars as &$value) {
-            if (is_iterable($value)) {
-                foreach ($value as &$v) {
+        $class = new ReflectionClass($this);
+        $properties = $class->getProperties(ReflectionProperty::IS_PUBLIC);
+
+        $array = [
+            '_type' => static::class
+        ];
+
+        foreach ($properties as $property) {
+            $propertyName = $property->getName();
+            $propertyValue = $this->$propertyName;
+
+            $typeCast = static::getTypeCast($property);;
+            if ($typeCast !== null) {
+                $array[$propertyName] = $typeCast->serialize($propertyValue);
+                continue;
+            }
+
+            if (is_iterable($propertyValue)) {
+                $subVars = [];
+                foreach ($propertyValue as $key => &$v) {
                     if ($v instanceof Serializable)
-                        $v = $v->toArray();
+                        $subVars[$key] = $v->toArray();
+                    else
+                        $subVars[$key] = $v;
                 }
-            } elseif (is_object($value)) {
-                $value = $value->toArray();
+                $array[$propertyName] = $subVars;
+            } elseif (is_object($propertyValue)) {
+                $array[$propertyName] = $propertyValue->toArray();
+            } else {
+                $array[$propertyName] = $propertyValue;
             }
         }
-        return  $vars;
+
+        return  $array;
+    }
+
+    private static function getTypeCast(ReflectionParameter|ReflectionProperty $param): ?TypeCast
+    {
+        $castAttributes = $param->getAttributes(CastTypeWith::class);
+        if (count($castAttributes) > 0) {
+            $castAttribute = $castAttributes[0]->newInstance();
+            return app($castAttribute->class);
+        }
+        return null;
     }
 
     private static function makeValidator(array $array, string $prefix = ''): array
@@ -72,6 +105,13 @@ abstract class Serializable implements Arrayable, Responsable
                 $ruleAttributes = $param->getAttributes(Rule::class);
                 $rulesFromAttributes = array_merge(...array_map(fn($r) => $r->newInstance()->toArray(), $ruleAttributes));
                 $rules = [...$rules, ...$rulesFromAttributes];
+
+                $typeCast = static::getTypeCast($param);;
+                if ($typeCast !== null) {
+                    $rules[] = $typeCast->serializedType;
+                    $validator[$prefix . $paramName] = $rules;
+                    continue;
+                }
 
                 if (class_exists($paramTypeName) && isset($array[$paramName])) {
                     $value = $array[$paramName];
@@ -188,6 +228,12 @@ abstract class Serializable implements Arrayable, Responsable
             if ($paramType instanceof ReflectionNamedType) {
                 $typeName = $paramType->getName();
                 $elementFromArrayType = gettype($valueFromInput);
+
+                $typeCast = static::getTypeCast($param);;
+                if ($typeCast !== null) {
+                    $params[] = $typeCast->unserialize($valueFromInput);
+                    continue;
+                }
 
                 if (in_array($typeName, ['bool', 'int', 'float', 'string'])) {
                     if (!static::isSameType($elementFromArrayType, $typeName)) throw new TypesDoNotMatchException();

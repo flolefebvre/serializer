@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Tests\Helper\ClassFactory;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,7 @@ use Tests\Helper\Classes\WithArrayOfMixed;
 use Tests\Helper\Classes\ChildOfEmptyClass;
 use Tests\Helper\Classes\WithArrayOfArrays;
 use Tests\Helper\Classes\WithAttributeRule;
+use Tests\Helper\Classes\WithCastAttribute;
 use Tests\Helper\Classes\WithDefaultValues;
 use Tests\Helper\Classes\WithOptionalArray;
 use Tests\Helper\Classes\WithOptionalClass;
@@ -27,8 +29,8 @@ use Tests\Helper\Classes\WithArrayOfSubClass;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Helper\Classes\WithArrayAndAttribute;
-use Tests\Helper\Classes\WithOneNotPropertyText;
 use Tests\Helper\Classes\WithCombinationOfRules;
+use Tests\Helper\Classes\WithOneNotPropertyText;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
 use Tests\Helper\Classes\WithArrayOfArrayOfSubclass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
@@ -64,7 +66,20 @@ describe('#toArray', function () {
         'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class, 'text' => null]]
     ]);
 
-    it('is fast', function (int $n) {
+    it('converts object with type attribute', function (Serializable $object, array $expected) {
+        // Act
+        $result = $object->toArray();
+
+        // Assert
+        expect($result)->toBe($expected);
+    })->with([
+        'WithCastAttribute' => [
+            new WithCastAttribute(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')),
+            ['_type' => WithCastAttribute::class, 'date' => '2025-04-01T10:00:00+00:00']
+        ],
+    ]);
+
+    it('is fast', function (int $n, int $time) {
         // Arrange
         $n = (int)(log(2 * $n + 1, 3) - 1);
         $withArray = new ClassFactory()->make($n, 3);
@@ -75,12 +90,13 @@ describe('#toArray', function () {
         $ellapsed = microtime(true) - $before;
 
         // Assert
-        expect($ellapsed)->toBeLessThan(1);
+        expect($ellapsed * 1000)->toBeLessThan($time);
     })->with([
-        [100],
-        [1000],
-        [10000],
-        [50000],
+        [100, 1],
+        [1000, 1],
+        [10000, 10],
+        [50000, 50],
+        [100000, 100],
     ]);
 });
 
@@ -146,6 +162,20 @@ describe('#from', function () {
         // Assert
         expect($result)->toEqual(new WithOneText('the text'));
     });
+
+    it('unserializes with type attribute', function (Serializable $input, array $array) {
+        // Act
+        $result = Serializable::from($array);
+
+        // Assert
+        expect($result)->toEqual($input);
+    })->with([
+        'WithCastAttribute' => [
+            new WithCastAttribute(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')),
+            ['_type' => WithCastAttribute::class, 'date' => '2025-04-01T10:00:00+00:00']
+        ],
+
+    ]);
 
     it('is fast', function (int $n) {
         // Arrange
@@ -295,14 +325,15 @@ describe('#validate', function () {
         'WithArrayOfStrings' => [['array' => ['a', 'b']], WithArrayOfStrings::class],
         'WithArrayOfArrays' => [['array' => [[], ['b' => 'c']]], WithArrayOfArrays::class],
         'WithArrayOfMixed' => [['array' => ['a', ['b' => 'c']]], WithArrayOfMixed::class],
-        'WithSubClass' => [new WithSubClass(new WithOneText('the text'))->toArray(), WithSubClass::class],
+        'WithSubClass' => fn() => [new WithSubClass(new WithOneText('the text'))->toArray(), WithSubClass::class],
         'WithOptionalValue' => [['_type' => WithOptionalValue::class], WithOptionalValue::class],
         'WithOptionalClass' => [['_type' => WithOptionalClass::class], WithOptionalClass::class],
         'WithOptionalArray' => [['_type' => WithOptionalArray::class], WithOptionalArray::class],
-        'WithArrayOfSubClass' => [new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])->toArray(), WithArrayOfSubClass::class],
-        'WithArrayOfArrayOfSubclass' => [new WithArrayOfArrayOfSubclass([
+        'WithArrayOfSubClass' => fn() =>  [new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])->toArray(), WithArrayOfSubClass::class],
+        'WithArrayOfArrayOfSubclass' => fn() =>  [new WithArrayOfArrayOfSubclass([
             new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])
-        ])->toArray(), WithArrayOfArrayOfSubclass::class]
+        ])->toArray(), WithArrayOfArrayOfSubclass::class],
+        'WithCastAttribute' => fn() => [['date' => '2025-04-01T10:00:00+00:00'], WithCastAttribute::class]
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
@@ -339,6 +370,8 @@ describe('#validate', function () {
             'WithArrayOfArrays' => [['array' => ['a', ['b' => 'c']]], WithArrayOfArrays::class, ['array.0']],
             'WithSubClass' => [['subClass' => ['text' => 4]], WithSubClass::class, ['subClass.text']],
             'WithOptionalClass' => [['_type' => WithOptionalClass::class, 'class' => []], WithOptionalClass::class, ['class.text']],
+            'WithCastAttribute missing' =>  [[], WithCastAttribute::class, ['date']],
+            'WithCastAttribute wrong type' =>  [['date' => 4], WithCastAttribute::class, ['date']]
         ]);
 });
 
