@@ -250,9 +250,9 @@ abstract class Serializable implements Arrayable, Responsable
                 }
 
                 if (in_array($typeName, ['bool', 'int', 'float', 'string'])) {
-                    if (!static::isSameType($elementFromArrayType, $typeName)) throw new TypesDoNotMatchException();
+                    if (!static::isSameType($elementFromArrayType, $typeName)) throw new TypesDoNotMatchException($typeName, $elementFromArrayType);
                 } elseif ($typeName == 'array') {
-                    if ($elementFromArrayType !== 'array') throw new TypesDoNotMatchException();
+                    if ($elementFromArrayType !== 'array') throw new TypesDoNotMatchException($typeName, $elementFromArrayType);
 
                     $attributes = $param->getAttributes(ArrayType::class);
                     if (count($attributes) !== 1) throw new ArrayTypeIsMissingException($type);
@@ -265,7 +265,7 @@ abstract class Serializable implements Arrayable, Responsable
                             }
                         } else {
                             foreach ($valueFromInput as &$v) {
-                                if (!static::isSameType(gettype($v), $arrayType)) throw new TypesDoNotMatchException();
+                                if (!static::isSameType(gettype($v), $arrayType)) throw new TypesDoNotMatchException($arrayType, gettype($v));
                             }
                         }
                     }
