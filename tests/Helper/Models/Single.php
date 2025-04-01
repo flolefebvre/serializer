@@ -2,7 +2,7 @@
 
 namespace Tests\Helper\Models;
 
-use Flolefebvre\Serializer\SerizalizableCast;
+use Flolefebvre\Serializer\EloquentCast;
 use Illuminate\Database\Eloquent\Model;
 
 class Single extends Model
@@ -14,7 +14,7 @@ class Single extends Model
     public function casts()
     {
         return [
-            'value' => SerizalizableCast::class
+            'value' => EloquentCast::class
         ];
     }
 }

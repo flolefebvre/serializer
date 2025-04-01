@@ -5,7 +5,7 @@ namespace Flolefebvre\Serializer;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 
-class SerizalizableCast implements CastsAttributes
+class EloquentCast implements CastsAttributes
 {
     protected CastMode $mode;
 

@@ -2,7 +2,7 @@
 
 namespace Tests\Helper\Models;
 
-use Flolefebvre\Serializer\SerizalizableCast;
+use Flolefebvre\Serializer\EloquentCast;
 use Illuminate\Database\Eloquent\Model;
 
 class ListModel extends Model
@@ -14,7 +14,7 @@ class ListModel extends Model
     public function casts()
     {
         return [
-            'value' => SerizalizableCast::class . ':list'
+            'value' => EloquentCast::class . ':list'
         ];
     }
 }
