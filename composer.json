@@ -1,7 +1,7 @@
 {
   "name": "flolefebvre/serializer",
   "type": "library",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "require-dev": {
     "pestphp/pest": "^3.7",
     "orchestra/testbench": "^10.1",
