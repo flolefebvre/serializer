@@ -39,6 +39,7 @@ use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
 use Tests\Helper\Classes\WithCarbonDate;
+use Tests\Helper\Classes\WithInversedOrderedProperties;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -66,6 +67,18 @@ describe('#toArray', function () {
         'WithArrayOfMixed' => [new WithArrayOfMixed(['a', ['b' => 'c']]), ['_type' => WithArrayOfMixed::class, 'array' => ['a', ['b' => 'c']]]],
         'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class, 'text' => null]]
     ]);
+
+    it('order the properties', function () {
+        // Act
+        $result = new WithInversedOrderedProperties('b', 'a')->toArray();
+
+        // Assert
+        expect($result)->toBe([
+            '_type' => WithInversedOrderedProperties::class,
+            'a' => 'a',
+            'b' => 'b'
+        ]);
+    });
 
     it('converts object with type attribute', function (Serializable $object, array $expected) {
         // Act
@@ -158,7 +171,7 @@ describe('#from', function () {
                 '_type' => WithCarbonDate::class,
                 'date' => Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')
             ]
-        ]
+        ],
     ]);
 
     it('unserializes from object with accessible values but not public properties', function () {

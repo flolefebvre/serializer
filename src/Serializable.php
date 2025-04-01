@@ -67,6 +67,9 @@ abstract class Serializable implements Arrayable, Responsable
             }
         }
 
+        // Makes sure the return value always has the same order
+        // event if the user moves properties around
+        ksort($array);
         return  $array;
     }
 
