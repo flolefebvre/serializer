@@ -18,8 +18,12 @@ class CarbonStringCast implements TypeCast
 
     public function unserialize(mixed $value): Carbon
     {
-        if (gettype($value) !== 'string') throw new InvalidArgumentException('$value must be of type string');
-
-        return Carbon::parse($value);
+        if (gettype($value) === 'string') {
+            return Carbon::parse($value);
+        } elseif ($value instanceof Carbon) {
+            return $value->copy();
+        } else {
+            throw new InvalidArgumentException('$value must be of type string or Carbon');
+        }
     }
 }

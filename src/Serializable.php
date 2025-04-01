@@ -2,7 +2,9 @@
 
 namespace Flolefebvre\Serializer;
 
+use Carbon\Carbon;
 use ErrorException;
+use Flolefebvre\Serializer\Casts\CarbonStringCast;
 use ReflectionClass;
 use ReflectionProperty;
 use ReflectionNamedType;
@@ -26,6 +28,10 @@ use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedExcept
 
 abstract class Serializable implements Arrayable, Responsable
 {
+    private static array $defaultCasts = [
+        Carbon::class => CarbonStringCast::class
+    ];
+
     public function toArray(): array
     {
         $class = new ReflectionClass($this);
@@ -70,6 +76,11 @@ abstract class Serializable implements Arrayable, Responsable
         if (count($castAttributes) > 0) {
             $castAttribute = $castAttributes[0]->newInstance();
             return app($castAttribute->class);
+        }
+
+        $typeName = $param->getType()?->getName();
+        if (isset(static::$defaultCasts[$typeName])) {
+            return app(static::$defaultCasts[$typeName]);
         }
         return null;
     }

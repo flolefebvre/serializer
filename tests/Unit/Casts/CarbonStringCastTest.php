@@ -35,6 +35,18 @@ describe('#unserialize', function () {
         $result = new CarbonStringCast()->unserialize('2025-04-01T10:00:00+00:00');
 
         // Assert
-        expect($result->equalTo(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')))->toBeTrue();
+        expect($result)->toEqual(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT'));
+    });
+
+    it('unserializes from Carbon date', function () {
+        // Arrange
+        $date = Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT');
+
+        // Act
+        $result = new CarbonStringCast()->unserialize($date);
+
+        // Assert
+        expect($result)->not->toBe($date);
+        expect($result)->toEqual(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT'));
     });
 });

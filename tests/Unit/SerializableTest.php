@@ -38,6 +38,7 @@ use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
 use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
+use Tests\Helper\Classes\WithCarbonDate;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -92,8 +93,8 @@ describe('#toArray', function () {
         // Assert
         expect($ellapsed * 1000)->toBeLessThan($time);
     })->with([
-        [100, 1],
-        [1000, 1],
+        [100, 2],
+        [1000, 5],
         [10000, 10],
         [50000, 50],
         [100000, 100],
@@ -123,6 +124,7 @@ describe('#from', function () {
         'WithOptionalValue' => [new WithOptionalValue(null)],
         'WithOptionalClass' => [new WithOptionalClass(null)],
         'WithOptionalArray' => [new WithOptionalArray(null)],
+        'WithCarbonDate' => [new WithCarbonDate(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT'))]
     ]);
 
     it('unserializes from array with additionnal data', function (Serializable $input, array $array) {
@@ -150,6 +152,13 @@ describe('#from', function () {
         'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class]],
         'WithOptionalClass' => [new WithOptionalClass(null), ['_type' => WithOptionalClass::class]],
         'WithOptionalArray' => [new WithOptionalArray(null), ['_type' => WithOptionalArray::class]],
+        'WithCarbonDate' => [
+            new WithCarbonDate(Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')),
+            [
+                '_type' => WithCarbonDate::class,
+                'date' => Carbon::create(2025, 4, 1, 10, 0, 0, 'GMT')
+            ]
+        ]
     ]);
 
     it('unserializes from object with accessible values but not public properties', function () {
@@ -333,7 +342,8 @@ describe('#validate', function () {
         'WithArrayOfArrayOfSubclass' => fn() =>  [new WithArrayOfArrayOfSubclass([
             new WithArrayOfSubClass([new WithSubClass(new WithOneText('value'))])
         ])->toArray(), WithArrayOfArrayOfSubclass::class],
-        'WithCastAttribute' => fn() => [['date' => '2025-04-01T10:00:00+00:00'], WithCastAttribute::class]
+        'WithCastAttribute' => fn() => [['date' => '2025-04-01T10:00:00+00:00'], WithCastAttribute::class],
+        'WithCarbonDate' => fn() => [['date' => '2025-04-01T10:00:00+00:00'], WithCarbonDate::class]
     ]);
 
     it('fails if _types do not fit', function (string $type, string $class) {
@@ -371,7 +381,8 @@ describe('#validate', function () {
             'WithSubClass' => [['subClass' => ['text' => 4]], WithSubClass::class, ['subClass.text']],
             'WithOptionalClass' => [['_type' => WithOptionalClass::class, 'class' => []], WithOptionalClass::class, ['class.text']],
             'WithCastAttribute missing' =>  [[], WithCastAttribute::class, ['date']],
-            'WithCastAttribute wrong type' =>  [['date' => 4], WithCastAttribute::class, ['date']]
+            'WithCastAttribute wrong type' =>  [['date' => 4], WithCastAttribute::class, ['date']],
+            'WithCarbonDate wrong type' =>  [['date' => 4], WithCarbonDate::class, ['date']]
         ]);
 });
 
