@@ -1,143 +1,195 @@
 # Flolefebvre Serializer
 
-A simplified and high-performance data serialization library for Laravel inspired by Spatie Data. With this library, you can easily define data transfer objects (DTOs) with automatic validation, seamless integration in controllers, and flexible Eloquent casting.
+[![Packagist Version](https://img.shields.io/packagist/v/flolefebvre/serializer?label=packagist)](https://packagist.org/packages/flolefebvre/serializer)
+[![Downloads](https://img.shields.io/packagist/dt/flolefebvre/serializer)](https://packagist.org/packages/flolefebvre/serializer)
+[![License](https://img.shields.io/packagist/l/flolefebvre/serializer)](LICENSE)
+[![CI](https://github.com/flolefebvre/serializer/actions/workflows/tests.yml/badge.svg)](https://github.com/flolefebvre/serializer/actions/workflows/tests.yml)
+
+A **zero‑boilerplate**, attribute‑driven serializer / DTO helper for **Laravel 10 & 11**  
+_Built for PHP ≥ 8.2 — lighter than 20 KB._
+
+---
+
+## Table of Contents
+
+- [Why another serializer?](#why-another-serializer)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Advanced usage](#advanced-usage)
+  - [Custom TypeCast](#custom-typecast)
+  - [Arrays of DTOs](#arrays-of-dtos)
+- [Performance & Limitations](#performance--limitations)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Why another serializer?
+
+`flolefebvre/serializer` focuses on **simplicity and strictness**:
+
+- DTOs are _just_ classes extending [`Serializable`](src/Serializable.php).
+- Validation occurs **before** the object exists — no invalid state can persist.
+- No generated code or heavy reflection caches; your build stays ultra‑fast.
+
+---
 
 ## Features
 
-- **Easy DTO Definition:** Extend `Flopefebvre\Serializer\Serializable` to create your own data classes.
-- **Automatic Validation:** When injected into controllers (e.g., during a create operation), the DTO is automatically validated.
-- **Inertia Integration:** Return your DTO directly as data in an `Inertia::render` response.
-- **Flexible Eloquent Casting:** Store data as JSON in your database:
-  - Use `"value" => Post::class` for a single DTO.
-  - Use `"value" => Post::class . ':list'` for an array of DTOs.
-- **Dynamic Instantiation:** Create DTO instances using `Post::from()` with an array, model, or any data source, as long as the values match.
-- **Custom Validation Rules:** Annotate properties with attributes like `#[Rule('my rule')]` for fine-grained validation.
-- **Array Type Specification:** Use `#[ArrayType('my type')]` to enforce element types in arrays.
+|                                       |                                             |
+| ------------------------------------- | ------------------------------------------- |
+| ✅ Constructor‑promoted DTOs only     | ✅ Automatic validation via `#[Rule]`       |
+| ✅ Pure attribute configuration       | ✅ Typed arrays (`#[ArrayType]`)            |
+| ✅ Laravel DI & Request auto‑binding  | ✅ Custom type‑casts (`TypeCast` interface) |
+| ✅ Eloquent JSON cast (single / list) | ✅ `JsonResponse` ready to return           |
+
+---
+
+## Requirements
+
+- PHP **8.2+**
+- Laravel **10 / 11**
+- `ext-json`
+
+---
 
 ## Installation
-
-Install via Composer:
 
 ```bash
 composer require flolefebvre/serializer
 ```
 
-## Usage
+---
 
-### 1. Define a Data Class
+## Quick start
 
-Create a DTO by extending `Flopefebvre\Serializer\Serializable`. For example, a `Post` class representing a blog post:
+Create a DTO:
 
 ```php
 <?php
 
-namespace App\Data;
+namespace App\DTO;
 
 use Flolefebvre\Serializer\Serializable;
 use Flolefebvre\Serializer\Attributes\Rule;
+
+class PostData extends Serializable
+{
+    public function __construct(
+        public string $title,
+        #[Rule('nullable|string|max:280')]
+        public ?string $excerpt,
+        #[Rule('required|url')]
+        public string $url,
+    ) {}
+}
+```
+
+Bind it in a route:
+
+```php
+use App\DTO\PostData;
+use Illuminate\Support\Facades\Route;
+
+Route::post('/posts', function (PostData $data) {
+    // $data is a fully validated DTO.
+    // ...
+    return $data; // => JsonResponse 201
+});
+```
+
+Try it:
+
+```bash
+curl -X POST http://localhost/api/posts      -H "Content-Type: application/json"      -d '{"title":"Hello","excerpt":null,"url":"https://example.com"}'
+```
+
+Response:
+
+```json
+{
+  "title": "Hello",
+  "excerpt": null,
+  "url": "https://example.com",
+  "_type": "App\\DTO\\PostData"
+}
+```
+
+---
+
+## Advanced usage
+
+### Custom TypeCast
+
+```php
+use Ramsey\Uuid\UuidInterface;
+use Flolefebvre\Serializer\Attributes\CastTypeWith;
+use Flolefebvre\Serializer\Casts\TypeCast;
+use Ramsey\Uuid\Uuid;
+
+class UuidCast implements TypeCast
+{
+    // How the value will appear once serialized
+    public string $serializedType = 'uuid';
+
+    public function serialize(mixed $value): mixed
+    {
+        return (string) $value;
+    }
+
+    public function unserialize(mixed $value): mixed
+    {
+        return Uuid::fromString($value);
+    }
+}
+
+class OrderData extends Serializable
+{
+    public function __construct(
+        #[CastTypeWith(UuidCast::class)]
+        public UuidInterface $id,
+    ) {}
+}
+```
+
+### Arrays of DTOs
+
+```php
 use Flolefebvre\Serializer\Attributes\ArrayType;
 
-class Post extends Serializable
+class BlogData extends Serializable
 {
-    #[Rule('min:3')]
-    public string $title;
-
-    public ?string $content = null;
-
-    #[ArrayType('string')]
-    public array $tags = [];
+    public function __construct(
+        #[ArrayType(CommentData::class)]
+        public array $comments,
+    ) {}
 }
 ```
 
-### 2. Controller Injection and Automatic Validation
+---
 
-Leverage Laravel's dependency injection to automatically validate incoming data:
+## Performance & Limitations
 
-```php
-<?php
+| Topic                    | Notes                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Reflection               | Metadata is rebuilt on every call → enable OPcache and/or add a static cache for high‑traffic endpoints. |
+| Union/Intersection Types | Not yet supported — contributions welcome.                                                               |
+| Polymorphism             | The `_type` field is required for subclasses during deserialization.                                     |
 
-namespace App\Http\Controllers;
+---
 
-use App\Data\Post;
-use Illuminate\Http\Request;
+## Contributing
 
-class PostController extends Controller
-{
-    public function store(Post $post)
-    {
-        // The $post DTO is automatically validated.
-        // Process the validated data.
-    }
-}
-```
+1. Fork & clone
+2. `composer install && composer test`
+3. Create your feature branch (`git checkout -b feature/my-feature`)
+4. Push and open a PR
+5. Ensure tests pass and follow PSR‑12.
 
-### 3. Return DTO with Inertia
-
-Use your DTO directly in Inertia responses:
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use App\Data\Post;
-use Inertia\Inertia;
-
-class PostController extends Controller
-{
-    public function show(Post $post)
-    {
-        return Inertia::render('Post/Show', $post);
-    }
-}
-```
-
-### 4. Eloquent Casting for JSON Storage
-
-Use the provided cast class to store your DTOs as JSON in the database:
-
-```php
-<?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-use Flolefebvre\Serializer\Casts\SerializableCast;
-use App\Data\Post;
-
-class Blog extends Model
-{
-    public function casts() {
-        return [
-            // For a single DTO instance:
-            'post' => Post::class,
-
-            // For a list of DTOs:
-            'posts' => Post::class . ':list',
-        ];
-    }
-}
-```
-
-### 5. Creating DTOs from Various Data Sources
-
-Instantiate your DTO using the `from` method with an array, model, or any compatible data source:
-
-```php
-use App\Data\Post;
-
-// From an array
-$post = Post::from([
-    'title'   => 'My First Post',
-    'content' => 'Hello, world!',
-    'tags'    => ['laravel', 'php']
-]);
-
-// Alternatively, from a model or other data source if field names match.
-```
+---
 
 ## License
 
-This project is open-sourced software licensed under the [MIT License](LICENSE).
-
-Explore the tests in the repository for more detailed usage examples. Enjoy building with Flolefebvre Serializer!
+Released under the MIT License — see [LICENSE](LICENSE).
