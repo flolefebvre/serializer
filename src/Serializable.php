@@ -23,7 +23,6 @@ use Flolefebvre\Serializer\Casts\CarbonStringCast;
 use Flolefebvre\Serializer\Rules\TypeExtendsClass;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
-use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
 
@@ -139,8 +138,9 @@ abstract class Serializable implements Arrayable, Responsable
 
                 if ($paramType->getName() === 'array') {
                     $attributes = $param->getAttributes(ArrayType::class);
-                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException($type);
-                    $arrayType = $attributes[0]->newInstance()->type;
+                    $arrayType = count($attributes) === 0
+                        ? Serializable::class
+                        : $attributes[0]->newInstance()->type;
 
                     if ($arrayType == 'mixed') continue;
                     elseif (class_exists($arrayType)) {
@@ -263,8 +263,9 @@ abstract class Serializable implements Arrayable, Responsable
                     if ($elementFromArrayType !== 'array') throw new TypesDoNotMatchException($typeName, $elementFromArrayType);
 
                     $attributes = $param->getAttributes(ArrayType::class);
-                    if (count($attributes) !== 1) throw new ArrayTypeIsMissingException($type);
-                    $arrayType = $attributes[0]->newInstance()->type;
+                    $arrayType = count($attributes) === 0
+                        ? Serializable::class
+                        : $attributes[0]->newInstance()->type;
 
                     if ($arrayType !== 'mixed') {
                         if (class_exists($arrayType)) {

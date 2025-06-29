@@ -10,7 +10,10 @@ use Tests\Helper\Classes\WithOneInt;
 use Tests\Helper\Classes\WithOneText;
 use Tests\Helper\Classes\WithSubClass;
 use Tests\Helper\Classes\WithTwoTexts;
+use Tests\Helper\Classes\WithCamelCase;
+use Tests\Helper\Classes\WithSnakeCase;
 use Flolefebvre\Serializer\Serializable;
+use Tests\Helper\Classes\WithCarbonDate;
 use Tests\Helper\Classes\WithNoArrayType;
 use Tests\Helper\Classes\WithNoTypeParam;
 use Tests\Helper\Classes\WithArrayOfMixed;
@@ -33,15 +36,12 @@ use Tests\Helper\Classes\WithCombinationOfRules;
 use Tests\Helper\Classes\WithOneNotPropertyText;
 use Tests\Helper\Classes\WithIntersectionTypeParam;
 use Tests\Helper\Classes\WithArrayOfArrayOfSubclass;
+use Tests\Helper\Classes\WithInversedOrderedProperties;
+use Tests\Helper\Classes\WithArrayOfSubClassButNoArrayType;
 use Flolefebvre\Serializer\Exceptions\MissingPropertyException;
 use Flolefebvre\Serializer\Exceptions\TypesDoNotMatchException;
-use Flolefebvre\Serializer\Exceptions\ArrayTypeIsMissingException;
 use Flolefebvre\Serializer\Exceptions\UnionTypeCannotBeUnserializedException;
 use Flolefebvre\Serializer\Exceptions\IntersectionTypeCannotBeUnserializedException;
-use Tests\Helper\Classes\WithCamelCase;
-use Tests\Helper\Classes\WithCarbonDate;
-use Tests\Helper\Classes\WithInversedOrderedProperties;
-use Tests\Helper\Classes\WithSnakeCase;
 
 describe('#toArray', function () {
     it('converts objects', function (Serializable $object, array $expected) {
@@ -67,7 +67,13 @@ describe('#toArray', function () {
         'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b']), ['_type' => WithArrayOfStrings::class, 'array' => ['a', 'b']]],
         'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']]), ['_type' => WithArrayOfArrays::class, 'array' => [[], ['b' => 'c']]]],
         'WithArrayOfMixed' => [new WithArrayOfMixed(['a', ['b' => 'c']]), ['_type' => WithArrayOfMixed::class, 'array' => ['a', ['b' => 'c']]]],
-        'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class, 'text' => null]]
+        'WithArrayOfSubClassButNoArrayType' => [new WithArrayOfSubClassButNoArrayType([new WithSubClass(new WithOneText('value'))]), [
+            '_type' => WithArrayOfSubClassButNoArrayType::class,
+            'array' => [
+                ['_type' => WithSubClass::class, 'subClass' => ['_type' => WithOneText::class, 'text' => 'value']]
+            ]
+        ]],
+        'WithOptionalValue' => [new WithOptionalValue(null), ['_type' => WithOptionalValue::class, 'text' => null]],
     ]);
 
     it('order the properties', function () {
@@ -136,6 +142,7 @@ describe('#from', function () {
         'WithArrayOfStrings' => [new WithArrayOfStrings(['a', 'b'])],
         'WithArrayOfArrays' => [new WithArrayOfArrays([[], ['b' => 'c']])],
         'WithArrayOfMixed' => [new WithArrayOfMixed(['a', 5, ['b' => 'c']])],
+        'WithArrayOfSubClassButNoArrayType' => [new WithArrayOfSubClassButNoArrayType([new WithSubClass(new WithOneText('value'))])],
         'WithOptionalValue' => [new WithOptionalValue(null)],
         'WithOptionalClass' => [new WithOptionalClass(null)],
         'WithOptionalArray' => [new WithOptionalArray(null)],
@@ -289,10 +296,6 @@ describe('#from', function () {
     it('throws if Intersection type', function () {
         WithIntersectionTypeParam::from([]);
     })->throws(IntersectionTypeCannotBeUnserializedException::class);
-
-    it('throws if no ArrayType', function () {
-        WithNoArrayType::from(['array' => []]);
-    })->throws(ArrayTypeIsMissingException::class);
 
     it('throws if types do not match type', function (string $class, array $input) {
         $class::from($input);
